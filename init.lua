@@ -1,6 +1,7 @@
 -- ranks/init.lua
 
 ranks = {}
+local thisModName = "ranks"
 
 local chat3_exists = minetest.get_modpath("chat3")
 local registered   = {}
@@ -8,6 +9,8 @@ local default
 
 -- Load mod storage
 local storage = minetest.get_mod_storage()
+
+nametag_mgr.register_mod(thisModName, " [", "]")
 
 ---
 --- API
@@ -29,6 +32,8 @@ function ranks.register(name, def)
 	assert(name ~= "clear", "Invalid name \"clear\" for rank")
 
 	registered[name] = def
+
+	nametag_mgr.register_mod_group(thisModName, name, get_colour(def.colour))
 
 	if def.default then
 		default = name
@@ -149,29 +154,12 @@ function ranks.update_nametag(name)
 		return
 	end
 
-	if type(name) ~= "string" then
-		name = name:get_player_name()
-	else
-		player = minetest.get_player_by_name(name)
-	end
-
 	local rank = ranks.get_rank(name)
 	if rank ~= nil then
-		local def    = ranks.get_def(rank)
-		local colour = get_colour(def.colour)
-		local prefix = def.prefix
-
-		if prefix then
-			prefix = minetest.colorize(colour, prefix).." "
-		else
-			prefix = ""
-		end
-
-		local player = minetest.get_player_by_name(name)
-		if player then
-			player:set_nametag_attributes({
-				text = prefix..name,
-			})
+		result, message = nametag_mgr.set_player_mod_group(name, thisModName, rank)
+		if not result then
+			minetest.chat_send_player(name, message)
+			return
 		end
 
 		return true
@@ -211,35 +199,11 @@ function ranks.remove_rank(name)
 		local player = minetest.get_player_by_name(name)
 		if player then
 			-- Update nametag
-			player:set_nametag_attributes({
-				text = name,
-				color = "#ffffff",
-			})
+			nametag_mgr.set_player_mod_group(player, thisModName, nil)
 			-- Update privileges
 			local basic_privs =
 				minetest.string_to_privs(minetest.settings:get("basic_privs") or "interact,shout")
 			minetest.set_player_privs(name, basic_privs)
-		end
-	end
-end
-
--- [function] Send prefixed message (if enabled)
-function ranks.chat_send(name, message)
-	if minetest.settings:get("ranks.prefix_chat") ~= "false" then
-		local rank = ranks.get_rank(name)
-		if rank ~= nil then
-			local def = ranks.get_def(rank)
-			if def.prefix then
-				local colour = get_colour(def.colour)
-				local prefix = minetest.colorize(colour, def.prefix)
-				if chat3_exists then
-					chat3.send(name, message, prefix.." ", "ranks")
-				else
-					minetest.chat_send_all(prefix.." <"..name.."> "..message)
-					minetest.log("action", "CHAT: ".."<"..name.."> "..message)
-				end
-				return true
-			end
 		end
 	end
 end
@@ -286,11 +250,6 @@ minetest.register_on_joinplayer(function(player)
 	end
 end)
 
--- Prefix messages if enabled
-minetest.register_on_chat_message(function(name, message)
-	return ranks.chat_send(name, message)
-end)
-
 -- [chatcommand] /rank
 minetest.register_chatcommand("rank", {
 	description = "Set a player's rank",
@@ -306,7 +265,7 @@ minetest.register_chatcommand("rank", {
 			return true, "Available Ranks: "..ranks.list_plaintext()
 		elseif #param == 2 then
 			if minetest.player_exists(param[1]) == false then
-					return false, "Player does not exist"
+				return false, "Player does not exist"
 			end
 
 			if ranks.get_def(param[2]) then
