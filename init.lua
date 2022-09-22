@@ -1,7 +1,7 @@
 -- ranks/init.lua
 
 ranks = {}
-local thisModName = "ranks"
+local modName = "ranks"
 
 local chat3_exists = minetest.get_modpath("chat3")
 local registered   = {}
@@ -10,7 +10,7 @@ local default
 -- Load mod storage
 local storage = minetest.get_mod_storage()
 
-nametag_mgr.register_mod(thisModName, " [", "]")
+nametag_mgr.register_mod(modName, " [", "]")
 
 ---
 --- API
@@ -33,7 +33,7 @@ function ranks.register(name, def)
 
 	registered[name] = def
 
-	nametag_mgr.register_mod_group(thisModName, name, get_colour(def.colour))
+	nametag_mgr.register_mod_group(modName, name, get_colour(def.colour))
 
 	if def.default then
 		default = name
@@ -156,7 +156,7 @@ function ranks.update_nametag(name)
 
 	local rank = ranks.get_rank(name)
 	if rank ~= nil then
-		result, message = nametag_mgr.set_player_mod_group(name, thisModName, rank)
+		result, message = nametag_mgr.set_player_mod_group(name, modName, rank)
 		if not result then
 			minetest.chat_send_player(name, message)
 			return
@@ -199,7 +199,7 @@ function ranks.remove_rank(name)
 		local player = minetest.get_player_by_name(name)
 		if player then
 			-- Update nametag
-			nametag_mgr.set_player_mod_group(player, thisModName, nil)
+			nametag_mgr.set_player_mod_group(player, modName, nil)
 			-- Update privileges
 			local basic_privs =
 				minetest.string_to_privs(minetest.settings:get("basic_privs") or "interact,shout")
